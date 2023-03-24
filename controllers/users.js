@@ -1,96 +1,111 @@
 const User = require("../models/user");
 const router = require("express").Router();
-const bcrypt = require("bcrypt");
+// const bcrypt = require("bcrypt");
 
-router.put("/:id/follow", async (req, res) => {
-    if (req.body.userId !== req.params.id) {
-      try {
-        const user = await User.findById(req.params.id);
-        const currentUser = await User.findById(req.body.userId);
-        if (!user.followers.includes(req.body.userId)) {
-          await user.updateOne({ $push: { followers: req.body.userId } });
-          await currentUser.updateOne({ $push: { followings: req.params.id } });
-          res.status(200).json("following");
-        } else {
-          res.status(403).json("you follow this user already");
-        }
-      } catch (err) {
-        res.status(500).json(err);
-      }
-    } else {
-      res.status(403).json("you cant follow yourself");
-    }
-  });
+const headCount = async () =>
+  User.aggregate()
+  .then((numberOfUsers) => numberOfUsers);
 
-router.put("/:id", async (req, res) => {
-  if (req.body.userId === req.params.id || req.body.isAdmin) {
-    if (req.body.password) {
-      try {
-        const salt = await bcrypt.genSalt(10);
-        req.body.password = await bcrypt.hash(req.body.password, salt);
-      } catch (err) {
+const grade = async (userId) =>
+  User.aggregate([
+    {},
+    {
+      $unwind: "$friends",
+    },
+    {},
+  ]);
+
+module.exports = {
+  getUsers(req, res) {
+    User.find()
+      .then(async (users) => {
+        const userObj = {
+          users,
+          headCount: await headCount(),
+        };
+        return res.json(userObj);
+      })
+      .catch((err) => {
+        console.log(err);
         return res.status(500).json(err);
-      }
-    }
-    try {
-      const user = await User.findByIdAndUpdate(req.params.id, {
-        $set: req.body,
       });
-      res.status(200).json("Account updated");
-    } catch (err) {
-      return res.status(500).json(err);
-    }
-  } else {
-    return res.status(403).json("You can update only your account!");
-  }
-});
+  },
 
+  getSingleUser(req, res) {
+    User.findOne({ _id: req.params.userId })
+      .select("-__v")
+      .lean()
+      .then(async (user) =>
+        !user
+          ? res.status(404).json({ message: "No user with that ID" })
+          : res.json({
+              user,
+              grade: await grade(req.params.userId),
+            })
+      )
+      .catch((err) => {
+        console.log(err);
+        return res.status(500).json(err);
+      });
+  },
 
-router.delete("/:id", async (req, res) => {
-  if (req.body.userId === req.params.id || req.body.isAdmin) {
-    try {
-      await User.findByIdAndDelete(req.params.id);
-      res.status(200).json("Account has been deleted");
-    } catch (err) {
-      return res.status(500).json(err);
-    }
-  } else {
-    return res.status(403).json("You can delete only your account!");
-  }
-});
+  createUser(req, res) {
+    User.create(req.body)
+      .then((user) => res.json(user))
+      .catch((err) => res.status(500).json(err));
+  },
 
-
-router.get("/:id", async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id);
-    const { password, updatedAt, ...other } = user._doc;
-    res.status(200).json(other);
-  } catch (err) {
-    res.status(500).json(err);
-  }
-});
-
-
-
-
-router.put("/:id/unfollow", async (req, res) => {
-    if (req.body.userId !== req.params.id) {
-      try {
-        const user = await User.findById(req.params.id);
-        const currentUser = await User.findById(req.body.userId);
-        if (user.followers.includes(req.body.userId)) {
-          await user.updateOne({ $pull: { followers: req.body.userId } });
-          await currentUser.updateOne({ $pull: { followings: req.params.id } });
-          res.status(200).json("unfollowed");
-        } else {
-          res.status(403).json("you dont follow this user");
-        }
-      } catch (err) {
+  deleteUser(req, res) {
+    User.findOneAndRemove({ _id: req.params.userId })
+      .then((user) =>
+        !user
+          ? res.status(404).json({ message: "No such user exists" })
+          : Course.findOneAndUpdate(
+              { users: req.params.userId },
+              { $pull: { users: req.params.userId } },
+              { new: true }
+            )
+      )
+      .then((course) =>
+        !course
+          ? res.status(404).json({
+              message: "user deleted, but no courses found",
+            })
+          : res.json({ message: "user successfully deleted" })
+      )
+      .catch((err) => {
+        console.log(err);
         res.status(500).json(err);
-      }
-    } else {
-      res.status(403).json("can't do that!");
-    }
-  });
+      });
+  },
 
-module.exports = router;
+  addFriend(req, res) {
+    console.log("You are adding an friend");
+    console.log(req.body);
+    User.findOneAndUpdate(
+      { _id: req.params.userId },
+      { $addToSet: { friends: req.body } },
+      { runValidators: true, new: true }
+    )
+      .then((user) =>
+        !user
+          ? res.status(404).json({ message: "No user found with that ID :(" })
+          : res.json(user)
+      )
+      .catch((err) => res.status(500).json(err));
+  },
+
+  removeFriend(req, res) {
+    Student.findOneAndUpdate(
+      { _id: req.params.studentId },
+      { $pull: { friend: { friendId: req.params.friendId } } },
+      { runValidators: true, new: true }
+    )
+      .then((user) =>
+        !user
+          ? res.status(404).json({ message: "No user found with that ID :(" })
+          : res.json(user)
+      )
+      .catch((err) => res.status(500).json(err));
+  },
+};
