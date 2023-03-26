@@ -23,7 +23,6 @@ const grade = async (thoughtId) =>
   ]);
 
 module.exports = {
-  
   getThoughts(req, res) {
     Thought.find()
       .then(async (thoughts) => {
