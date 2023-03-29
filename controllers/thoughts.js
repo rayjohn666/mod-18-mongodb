@@ -2,25 +2,7 @@ const router = require("express").Router();
 const Thought = require("../models/Thought");
 const User = require("../models/User");
 
-const headCount = async () =>
-  Thought.aggregate()
-    
-    .then((numberOfThoughts) => numberOfThoughts);
 
-const grade = async (thoughtId) =>
-  Thought.aggregate([
-    
-    {
-      
-    },
-    {
-      $unwind: '$reactions',
-    },
-    
-    {
-
-    },
-  ]);
 
 module.exports = {
   getThoughts(req, res) {
@@ -28,7 +10,6 @@ module.exports = {
       .then(async (thoughts) => {
         const thoughtObj = {
           thoughts,
-          headCount: await headCount(),
         };
         return res.json(thoughtObj);
       })
@@ -47,7 +28,7 @@ module.exports = {
           ? res.status(404).json({ message: 'No thought with that ID' })
           : res.json({
               thought,
-              grade: await grade(req.params.thoughtId),
+            
             })
       )
       .catch((err) => {
@@ -65,25 +46,13 @@ module.exports = {
   deleteThought(req, res) {
     Thought.findOneAndRemove({ _id: req.params.thoughtId })
       .then((thought) =>
-        !thought
-          ? res.status(404).json({ message: 'No such thought exists' })
-          : Course.findOneAndUpdate(
-              { thoughts: req.params.thoughtId },
-              { $pull: { thoughts: req.params.thoughtId } },
-              { new: true }
-            )
-      )
-      .then((course) =>
-        !course
-          ? res.status(404).json({
-              message: 'Thought deleted, but no courses found',
-            })
-          : res.json({ message: 'Thought successfully deleted' })
-      )
-      .catch((err) => {
+        res.json(thought)
+       
+         
+       .catch((err) => {
         console.log(err);
         res.status(500).json(err);
-      });
+      }));
   },
 
   
@@ -108,7 +77,7 @@ module.exports = {
   removeReaction(req, res) {
     Thought.findOneAndUpdate(
       { _id: req.params.thoughtId },
-      { $pull: { reaction: { reactionId: req.params.reactiontId } } },
+      { $pull: { reactions: { reactionId: req.params.reactiontId } } },
       { runValidators: true, new: true }
     )
       .then((thought) =>

@@ -1,19 +1,8 @@
-const User = require("../models/user");
-const router = require("express").Router();
+const User = require("../models/User");
+// const router = require("express").Router();
 // const bcrypt = require("bcrypt");
 
-const headCount = async () =>
-  User.aggregate()
-  .then((numberOfUsers) => numberOfUsers);
 
-const grade = async (userId) =>
-  User.aggregate([
-    {},
-    {
-      $unwind: "$friends",
-    },
-    {},
-  ]);
 
 module.exports = {
   getUsers(req, res) {
@@ -21,7 +10,6 @@ module.exports = {
       .then(async (users) => {
         const userObj = {
           users,
-          headCount: await headCount(),
         };
         return res.json(userObj);
       })
@@ -40,7 +28,7 @@ module.exports = {
           ? res.status(404).json({ message: "No user with that ID" })
           : res.json({
               user,
-              grade: await grade(req.params.userId),
+        
             })
       )
       .catch((err) => {
@@ -58,20 +46,20 @@ module.exports = {
   deleteUser(req, res) {
     User.findOneAndRemove({ _id: req.params.userId })
       .then((user) =>
-        !user
-          ? res.status(404).json({ message: "No such user exists" })
-          : Course.findOneAndUpdate(
-              { users: req.params.userId },
-              { $pull: { users: req.params.userId } },
-              { new: true }
-            )
-      )
-      .then((course) =>
-        !course
-          ? res.status(404).json({
-              message: "user deleted, but no courses found",
-            })
-          : res.json({ message: "user successfully deleted" })
+     //  //   !user
+      // //     ? res.status(404).json({ message: "No such user exists" })
+      //     : Thoughts.findOneAndUpdate(
+      //         { users: req.params.userId },
+      //         { $pull: { users: req.params.userId } },
+      //         { new: true }
+      //       )
+      // )
+      // .then((thoughts) =>
+      // //   !thoughts
+      // //     ? res.status(404).json({
+      //         message: "user deleted, but no thoughts found",
+      //       })
+          res.json({ message: "user successfully deleted" })
       )
       .catch((err) => {
         console.log(err);
@@ -84,7 +72,7 @@ module.exports = {
     console.log(req.body);
     User.findOneAndUpdate(
       { _id: req.params.userId },
-      { $addToSet: { friends: req.body } },
+      { $addToSet: { friends: req.params.friendId} },
       { runValidators: true, new: true }
     )
       .then((user) =>
@@ -96,9 +84,9 @@ module.exports = {
   },
 
   removeFriend(req, res) {
-    Student.findOneAndUpdate(
-      { _id: req.params.studentId },
-      { $pull: { friend: { friendId: req.params.friendId } } },
+    User.findOneAndUpdate(
+      { _id: req.params.userId },
+      { $pull: { friends: req.params.friendId } } ,
       { runValidators: true, new: true }
     )
       .then((user) =>
@@ -108,4 +96,18 @@ module.exports = {
       )
       .catch((err) => res.status(500).json(err));
   },
+
+  updateuser(req, res){
+    User.findOneAndUpdate(
+      { _id: req.params.userId },
+      req.body  ,
+      { runValidators: true, new: true }
+    )
+      .then((user) =>
+        !user
+          ? res.status(404).json({ message: "No user found with that ID :(" })
+          : res.json(user)
+      )
+      .catch((err) => res.status(500).json(err));
+  }
 };

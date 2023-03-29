@@ -67,5 +67,6 @@ const thoughtSchema = new mongoose.Schema(
   }
 );
 
+const Thoughts = mongoose.model("Thoughts",thoughtSchema)
 
-module.exports = mongoose.model("Thoughts", thoughtSchema);
+module.exports = Thoughts
