@@ -1,6 +1,6 @@
 const router = require("express").Router();
-const Post = require("../models/thoughts");
-const User = require("../models/user");
+const Thought = require("../models/Thought");
+const User = require("../models/User");
 
 const headCount = async () =>
   Thought.aggregate()
